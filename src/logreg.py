@@ -2,6 +2,10 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, roc_auc_score
 
+import pandas as pd
+
+import process_conn_matrices as pcm
+
 ### I'm going to have to extract the upper triangler only first ###
 """
 Steps: 
@@ -14,28 +18,36 @@ Steps:
 4. Look at the code below and see which to use/modify/take out.
 """
 
+subjects_with_groups_df = pd.read_csv('data/csv/simple_view.csv') # simple_view.csv is a CSV file with columns: subject, group, cahalan
+
+SC_matrices, subjects = pcm.load_and_flatten_conn_matrices('data/tractography_subcortical', False)
+# FC_matrices, subjects = load_and_flatten_conn_matrices('../data/TODO', True)
+
+# ******* Each subject has same y_SC so maybe make get_X_y return both X_SC and X_FC?
+# or keeping it this way would ensure that each X has the correct y
+X_SC, y_SC = pcm.get_X_y(SC_matrices, subjects, subjects_with_groups_df)
+# X_FC, y_FC = get_X_y(FC_matrices, subjects, subjects_with_groups_df)
+
 # FC matrix inputs (shape: n_samples x 11881)
-X_fc = None
+X_FC = None
 # Your binary target labels (0 or 1)
-y = None
-# SC matrix inputs (shape: n_samples x 8100)
-X_sc = None
+y_FC = None
 
 # Train-test split
-X_fc_train, X_fc_test, y_train, y_test = train_test_split(X_fc, y, test_size=0.2, random_state=42)
-X_sc_train, X_sc_test, y_train, y_test = train_test_split(X_sc, y, test_size=0.2, random_state=42)
+X_FC_train, X_FC_test, y_FC_train, y_FC_test = train_test_split(X_FC, y_FC, test_size=0.2, random_state=42)
+X_SC_train, X_SC_test, y_SC_train, y_SC_test = train_test_split(X_SC, y_SC, test_size=0.2, random_state=42)
 
 # Logistic Regression with Ridge Penalty
-model_fc = LogisticRegression(penalty='l2', C=1.0)  # C is the inverse of λ
-model_sc = LogisticRegression(penalty='l2', C=1.0)
+model_FC = LogisticRegression(penalty='l2', C=1.0)  # C is the inverse of λ
+model_SC = LogisticRegression(penalty='l2', C=1.0)
 
 # Train the models
-model_fc.fit(X_fc_train, y_train)
-model_sc.fit(X_sc_train, y_train)
+model_FC.fit(X_FC_train, y_FC_train)
+model_SC.fit(X_SC_train, y_SC_train)
 
 # Predict probabilities
-proba_fc = model_fc.predict_proba(X_fc_test)[:, 1]  # Probability of class 1
-proba_sc = model_sc.predict_proba(X_sc_test)[:, 1]  # Probability of class 1
+proba_fc = model_FC.predict_proba(X_FC_test)[:, 1]  # Probability of class 1
+proba_sc = model_SC.predict_proba(X_SC_test)[:, 1]  # Probability of class 1
 
 
 ### Ensemble Models ###

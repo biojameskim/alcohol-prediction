@@ -3,10 +3,9 @@ import scipy.io
 import numpy as np
 import pandas as pd
 
-def load_and_flatten_conn_matrices(directory, is_FC):
+def load_and_flatten_conn_matrices(directory):
     """
     Load and flatten the connectivity matrices from the given directory.
-    If is_FC is True, extract the upper triangular part of the matrix (excluding the diagonal).
     Returns: A tuple of (conn_matrices, subjects) where conn_matrices and subjects are arrays
     """
     conn_matrices = []
@@ -18,12 +17,10 @@ def load_and_flatten_conn_matrices(directory, is_FC):
             mat_contents = scipy.io.loadmat(file_path)
             conn_matrix = mat_contents['matrix'] # Extract the connectivity matrix from the .mat file
 
-            if is_FC:
-              diagonal_indices = np.triu_indices(conn_matrix.shape[0], 1)
-              conn_matrix = conn_matrix[diagonal_indices]
+            diagonal_indices = np.triu_indices(conn_matrix.shape[0], 1) 
+            conn_matrix = conn_matrix[diagonal_indices] # Extract the upper triangular part of the matrix (excluding the diagonal)
             
-            # Flatten the matrix into a 1D array
-            flattened_matrix = conn_matrix.flatten()
+            flattened_matrix = conn_matrix.flatten() # Flatten the matrix into a 1D array
             
             # Store the flattened matrix and subject id
             conn_matrices.append(flattened_matrix)
@@ -51,19 +48,6 @@ def get_X_y(conn_matrices, subjects, subjects_with_groups_df):
     
     return X, y
 
-
-if __name__ == "__main__":
-  subjects_with_groups_df = pd.read_csv('data/csv/simple_view.csv') # simple_view.csv is a CSV file with columns: subject, group, cahalan
-
-  SC_matrices, subjects = load_and_flatten_conn_matrices('data/tractography_subcortical', False)
-  # FC_matrices, subjects = load_and_flatten_conn_matrices('../data/TODO', True)
-
-  # ******* Each subject has same y_SC so maybe make get_X_y return both X_SC and X_FC?
-  # or keeping it this way would ensure that each X has the correct y
-  X_SC, y_SC = get_X_y(SC_matrices, subjects, subjects_with_groups_df)
-  # X_FC, y_FC = get_X_y(FC_matrices, subjects, subjects_with_groups_df)
-
-  print(X_SC.shape, y_SC.shape)
 
 
 
