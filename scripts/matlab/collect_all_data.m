@@ -1,19 +1,21 @@
 %% collect all scans and save
 clear all
 
-demos = readtable('tabular/demographics_short.csv', 'VariableNamingRule', 'preserve');
-drugs = readtable('tabular/cahalan_plus_drugs.csv', 'VariableNamingRule', 'preserve');
+demos = readtable('tabular/demographics_short.csv');
+drugs = readtable('tabular/cahalan_plus_drugs.csv');
 
 sids = unique(drugs.subject); %find subjects we have cahalan for
 demos = demos(ismember(demos.subject,sids) & strcmp(demos.arm,'standard') & ~isnan(demos.mri_restingstate_age),:); %filter demos table to show only subjects we have chalan for
 
 %% match rows across tables based on visit code & get mean FD
 
-mrd = readtable('tabular/MRD.csv', 'VariableNamingRule', 'preserve'); %mean FD values
+mrd = readtable('tabular/MRD.csv'); %mean FD values
 
 % Define the mapping between visit labels in demos and corresponding numeric values in drugs
 % visitMapStr2Num = containers.Map(unique(demos.visit), unique(drugs.visit));
 visitMapNum2Str = containers.Map(unique(drugs.visit), unique(demos.visit));
+
+
 
 demos_drugs_matched = table();
 for i = 1:length(drugs.subject)
@@ -26,7 +28,7 @@ for i = 1:length(drugs.subject)
     matchingRows_FD = mrd(strcmp(mrd.subject,drugs.subject{i}) & strcmp(mrd.visit,visitStringValue), :); %get FD values
     
     % note if we have preprocessed dmri
-    dmri_yn = exist(['dti_txt/',drugs.subject{i},'_',visitStringValue,'.txt'],'file');
+    dmri_yn = exist(['dti_mat/',drugs.subject{i},'_',visitStringValue,'.mat'],'file');
     if dmri_yn == 2
         dmri_yn = 1;
     end
@@ -51,7 +53,7 @@ demos_drugs_matched(demos_drugs_matched.dmri==0,:)=[];
 
 %% get time-series and outliers and dMRI for each group
 
-sri124 = readtable('tabular/sri24_parc116_gm.csv', 'VariableNamingRule', 'preserve');
+sri124 = readtable('tabular/sri24_parc116_gm.csv');
 
 SC = cell(height(demos_drugs_matched),1);
 outliers = cell(size(SC));
@@ -62,7 +64,7 @@ TS_gsr_interp = cell(size(SC));
 
 for i=1:height(demos_drugs_matched)
     
-    SC{i} = load(['dti_txt/',demos_drugs_matched.subject{i},'_',demos_drugs_matched.visit{i},'.txt']);
+    SC{i} = load(['dti_mat/',demos_drugs_matched.subject{i},'_',demos_drugs_matched.visit{i},'.mat']);
     outliers{i} = load(['rsfmri_txt/',demos_drugs_matched.subject{i},'_',demos_drugs_matched.visit{i},'_outliers.txt']);
     
     ts = load(['rsfmri_txt/',demos_drugs_matched.subject{i},'_',demos_drugs_matched.visit{i},'_gm-timeseries.txt']);
@@ -84,48 +86,25 @@ save NCANDA_all_data.mat demos_drugs_matched SC outliers TS TS_interp TS_gsr TS_
 %%
 
 save NCANDA_SC.mat SC
-%% Initialize FC and create it without outliers 
-
-FC = cell(size(TS, 1), 1);
+%%
 
 for i=1:size(TS,1)
-    if isempty(TS{i}) || isempty(outliers{i})
-        warning('TS or outliers for index %d are empty.', i);
-        continue;
-    end
     ts = TS{i};
     ts(outliers{i},:) = [];
-    FC{i} = corr(ts);
+    FC{i} = compute_corr_manual(ts);
 end
-
-if exist('FC', 'var') && ~isempty(FC)
-    save NCANDA_FC.mat FC
-else
-    error('Variable FC was not created.');
-end
+save NCANDA_FC.mat FC
 
 %%
 clear FC
 
-%% Initialize FC_gsr and create it without outliers 
-
-FC = cell(size(TS_gsr, 1), 1);
-
 for i=1:size(TS_gsr,1)
-    if isempty(TS_gsr{i}) || isempty(outliers{i})
-        warning('TS_gsr or outliers for index %d are empty.', i);
-        continue;
-    end
     ts = TS_gsr{i};
     ts(outliers{i},:) = [];
-    FC{i} = corr(ts);
+    FC{i} = compute_corr_manual(ts);
 end
 
-if exist('FC', 'var') && ~isempty(FC)
-    save NCANDA_FCgsr.mat FC
-else
-    error('Variable FC was not created.');
-end
+save NCANDA_FCgsr.mat FC
 
 %% 
 
