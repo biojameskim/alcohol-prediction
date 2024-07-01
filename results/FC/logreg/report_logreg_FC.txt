@@ -1,0 +1,10 @@
+Logistic Regression Results for FC matrix:
+Number of Splits: 5
+Number of Repeats: 1000
+
+Mean Accuracy: 0.6015026593125186
+Standard Deviation of Accuracy: 0.01869394680192365
+Mean Balanced Accuracy: 0.5468540445073271
+Standard Deviation of Balanced Accuracy: 0.019209506907667574
+Mean ROC AUC: 0.5657316432801424
+Standard Deviation of ROC AUC: 0.036926173036056845

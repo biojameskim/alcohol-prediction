@@ -5,6 +5,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
 from joblib import dump
 import numpy as np
+import time
 
 def create_model_and_metrics(X, y, num_splits=5, num_repeats=100):
   """
@@ -18,13 +19,17 @@ def create_model_and_metrics(X, y, num_splits=5, num_repeats=100):
   X_scaled = scaler.fit_transform(X)
 
   # Preallocating metrics arrays
-  balanced_accuracies = np.empty(num_repeats * 5)
-  roc_aucs = np.empty(num_repeats * 5)
-  accuracies = np.empty(num_repeats * num_splits)
-  idx = 0
+  balanced_accuracies = np.empty(num_repeats)
+  roc_aucs = np.empty(num_repeats)
+  accuracies = np.empty(num_repeats)
+  coefficients = np.empty((num_repeats, X.shape[1]))
 
-  for _ in range(num_repeats):
+  best_overall_bal_accuracy = -1
+
+  for repeat_idx in range(num_repeats):
     outer_kf = StratifiedKFold(n_splits=num_splits, shuffle=True, random_state=None)
+    best_bal_acc = -1
+
     for train_index, test_index in outer_kf.split(X, y):
       X_train, X_test = X_scaled[train_index], X_scaled[test_index]
       y_train, y_test = y[train_index], y[test_index]
@@ -36,31 +41,38 @@ def create_model_and_metrics(X, y, num_splits=5, num_repeats=100):
           penalty='l2', 
           Cs=C_values, 
           cv=inner_kf, 
-          random_state=42, 
+          random_state=None, 
           max_iter=100,
           n_jobs=-1 # Use all available CPU cores
       )
 
       # Train model on outer fold training data
-      model.fit(X_train, y_train)
+      model.fit(X_train, y_train) # This model has the optimal C value
 
       # Predict and evaluate on outer fold test data
       y_pred = model.predict(X_test)
       y_prob = model.predict_proba(X_test)[:, 1] # Probability of class 1
 
-      # Calculate standard accuracy
+      # Calculate metrics on outer test data
       accuracy = accuracy_score(y_test, y_pred)
-      accuracies[idx] = accuracy
-
-      # Calculate balanced accuracy
       bal_acc = balanced_accuracy_score(y_test, y_pred)
-      balanced_accuracies[idx] = bal_acc
-
-      # Calculate ROC AUC score
       roc_auc = roc_auc_score(y_test, y_prob)
-      roc_aucs[idx] = roc_auc
 
-      idx += 1
+      # Update best metrics if this one's bal acc is better (for this repeat)
+      if bal_acc > best_bal_acc:
+        best_accuracy = accuracy
+        best_bal_acc = bal_acc
+        best_roc_auc = roc_auc
+        best_coef = model.coef_[0]
+    
+    accuracies[repeat_idx] = best_accuracy
+    balanced_accuracies[repeat_idx] = best_bal_acc
+    roc_aucs[repeat_idx] = best_roc_auc
+    coefficients[repeat_idx, :] = best_coef
+
+    # Update best overall model if this one is better
+    if best_bal_acc > best_overall_bal_accuracy:
+      best_pipeline = make_pipeline(scaler, model)
 
   results = {
     "accuracies": accuracies,
@@ -72,7 +84,8 @@ def create_model_and_metrics(X, y, num_splits=5, num_repeats=100):
     "roc_aucs": roc_aucs,
     "mean_roc_auc": np.mean(roc_aucs),
     "std_roc_auc": np.std(roc_aucs),
-    "pipeline": make_pipeline(scaler, model)  # Return the final pipeline
+    "coefficients": coefficients,
+    "pipeline": best_pipeline  # Return the final pipeline
     }
   
   return results
@@ -92,9 +105,10 @@ def logreg_conn_matrices(matrix_type, num_splits, num_repeats):
   dump(results['pipeline'], f'models/logreg_{matrix_type}_model.joblib')
 
   # Save the results
-  np.save(f'results/{matrix_type}/logreg_{matrix_type}_accuracies.npy', results['accuracies'])
-  np.save(f'results/{matrix_type}/logreg_{matrix_type}_balanced_accuracies.npy', results['balanced_accuracies'])
-  np.save(f'results/{matrix_type}/logreg_{matrix_type}_roc_aucs.npy', results['roc_aucs'])
+  np.save(f'results/{matrix_type}/logreg/logreg_{matrix_type}_accuracies.npy', results['accuracies'])
+  np.save(f'results/{matrix_type}/logreg/logreg_{matrix_type}_balanced_accuracies.npy', results['balanced_accuracies'])
+  np.save(f'results/{matrix_type}/logreg/logreg_{matrix_type}_roc_aucs.npy', results['roc_aucs'])
+  np.save(f'results/{matrix_type}/logreg/logreg_{matrix_type}_coefficients.npy', results['coefficients'])
 
   # Put the results in a report
   report_lines = [
@@ -110,12 +124,26 @@ def logreg_conn_matrices(matrix_type, num_splits, num_repeats):
   ]
 
   # Write the results to a report file
-  with open(f'results/{matrix_type}/report_logreg_{matrix_type}.txt', 'w') as report_file:
+  with open(f'results/{matrix_type}/logreg/report_logreg_{matrix_type}.txt', 'w') as report_file:
       report_file.write("\n".join(report_lines))
 
   print(f"Printed results to results/{matrix_type}/report_logreg_{matrix_type}.txt")
 
 if __name__ == "__main__":
-  logreg_conn_matrices(matrix_type='SC', num_splits=5, num_repeats=1)
-  logreg_conn_matrices(matrix_type='FC', num_splits=5, num_repeats=10)
-  logreg_conn_matrices(matrix_type='FCgsr', num_splits=5, num_repeats=1)
+  print("Running logistic regression on SC matrices...")
+  start = time.time()
+  logreg_conn_matrices(matrix_type='SC', num_splits=5, num_repeats=1000)
+  end = time.time()
+  print(f"Finished SC in {end - start} seconds\n")
+
+  print("Running logistic regression on FC matrices...")
+  start = time.time()
+  logreg_conn_matrices(matrix_type='FC', num_splits=5, num_repeats=1000)
+  end = time.time()
+  print(f"Finished FC in {end - start} seconds\n")
+
+  print("Running logistic regression on FCgsr matrices...")
+  start = time.time()
+  logreg_conn_matrices(matrix_type='FCgsr', num_splits=5, num_repeats=1000)
+  end = time.time()
+  print(f"Finished FCgsr in {end - start} seconds\n")

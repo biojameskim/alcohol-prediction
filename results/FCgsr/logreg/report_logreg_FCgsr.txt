@@ -1,0 +1,10 @@
+Logistic Regression Results for FCgsr matrix:
+Number of Splits: 5
+Number of Repeats: 1000
+
+Mean Accuracy: 0.6003914114054959
+Standard Deviation of Accuracy: 0.01931580845304314
+Mean Balanced Accuracy: 0.5418706484533777
+Standard Deviation of Balanced Accuracy: 0.01834086853801724
+Mean ROC AUC: 0.5593960952769917
+Standard Deviation of ROC AUC: 0.036895528586262945

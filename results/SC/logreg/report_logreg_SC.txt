@@ -1,0 +1,10 @@
+Logistic Regression Results for SC matrix:
+Number of Splits: 5
+Number of Repeats: 1000
+
+Mean Accuracy: 0.6223501940993789
+Standard Deviation of Accuracy: 0.0217381443847676
+Mean Balanced Accuracy: 0.5926843841082517
+Standard Deviation of Balanced Accuracy: 0.02190340978042959
+Mean ROC AUC: 0.6184804418475645
+Standard Deviation of ROC AUC: 0.030760897977002877
